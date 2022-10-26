@@ -162,53 +162,72 @@ L5_Pts <- pmap(
   bind_rows()
 
 
-
-# Generate the gt table
-
+# Define max and min values for Points For and Points Against
 max_PF <- max(FFL_Table[FFL_Table$Week == max(FFL_Table$Week), ]$`Cumulative Points For`)
 min_PF <- min(FFL_Table[FFL_Table$Week == max(FFL_Table$Week), ]$`Cumulative Points For`)
 max_PA <- max(FFL_Table[FFL_Table$Week == max(FFL_Table$Week), ]$`Cumulative Points Against`)
 min_PA <- min(FFL_Table[FFL_Table$Week == max(FFL_Table$Week), ]$`Cumulative Points Against`)
 
+
+# Generate the gt table
 FFL_Table %>%
   filter(Week == max(FFL_Table$Week)) %>% ungroup() %>%
   left_join(L5_Wins, by = "Team") %>%
   left_join(L5_Pts, by = "Team") %>%
   left_join(AP_Tbl %>% select(Team, `All Play Percent`), by = "Team") %>%
-  select(Position, Team, `W-L`, `Win Percentage`, `All Play Percent`, 
+  select(Position, Image, Team, `W-L`, `Win Percentage`, `All Play Percent`, 
          `Cumulative Points For`, `Cumulative Points Against`, "L5 Games" = L5.x, "L5 Points" = L5.y) %>%
   mutate(`Win Percentage` = scales::percent(`Win Percentage`/100)) %>%
+  # Generate the gt() table
   gt() %>%
+  # Color the points for column based on min and max values
   data_color(
     columns = c(`Cumulative Points For`),
     colors = scales::col_numeric(
       palette = c("#eb633d", "#ebae34", "#b6eb60", "#0bb83c"),
       domain = c(min_PF, max_PF)),
     alpha = 0.7) %>%
+  # Color the points against column based on min and max values
   data_color(
     columns = c(`Cumulative Points Against`),
     colors = scales::col_numeric(
       palette = c("#0bb83c", "#b6eb60", "#ebae34", "#eb633d"),
       domain = c(min_PA, max_PA)),
     alpha = 0.7) %>%
+  # Add the win-loss column based on the L5 games list
   gt_plt_winloss(`L5 Games`, palette = c("#0bb83c", "#eb633d", "#edf0f0"), max_wins = 5) %>%
+  # Add a sparkline for the points from the last five games
   gt_plt_sparkline(`L5 Points`, type = "ref_mean", same_limit = TRUE,
                    palette = c("#3d3b3b", "#3d3b3b", "#eb633d", "#0bb83c", "#8a8787")) %>%
+  # Bold the team name column
   tab_style(
     style = list(cell_text(weight = "bold")),
-    locations = cells_body(columns = 2)) %>%
+    locations = cells_body(columns = 3)) %>%
+  # Adjust column widths for better aesthetics 
   cols_width(
     columns = 1 ~ px(50),
-    columns = 2 ~ px(280),
-    columns = 3:8 ~ px(110),
-    columns = 9 ~px(140)) %>%
+    columns = 2 ~ px(40),
+    columns = 3 ~ px(260),
+    columns = 3:9 ~ px(100),
+    columns = 10 ~px(140)) %>%
+  # Update column names
   cols_label(
     `Cumulative Points For` = "Points For",
     `Cumulative Points Against` = "Points Against",
-    Position = "") %>% 
+    Position = "",
+    Image = "") %>% 
+  # Align the columns, centered except the team name
   cols_align(
     align = "center",
-    columns = c(1, 3:9)) %>%
+    columns = c(1:2, 4:10)) %>%
+  # Add icons using text transform
+  text_transform(
+    locations = cells_body(columns = Image),
+      fn = function(x) {
+       local_image(
+          filename = FFL_Table[FFL_Table$Week == max(FFL_Table$Week), ]$Image,
+          height = 25)
+          }) %>%
   tab_header(
     title = "League Standings",
     subtitle = "Beta Hetas and a Worm") %>%
@@ -221,8 +240,6 @@ Position by Week
 
 Row
 -----------------------------------------------------------------------
-
-<br>
 
 ###
 
@@ -292,6 +309,7 @@ ggplotly(ffl_img, tooltip = "text") %>%
          font = list(size = 11, color = "#392c3b", family = "Arial")) 
 
 ```
+
 
 ```{r highlight, include=FALSE}
 
