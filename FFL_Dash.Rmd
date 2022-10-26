@@ -62,11 +62,8 @@ ffl_pal <- c(
 
 
 ### TO DO ###
-  # PRIORITY = Fix L5 Pts and Wins, not in the right order!!!
   # Plotly updates - highlight, spline, date slider?
   # DT table, not working
-  # League table background as gray from table
-  # League table position as small column to the left with no name, add images?
 
 ```
 
