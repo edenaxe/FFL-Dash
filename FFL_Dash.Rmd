@@ -1,0 +1,420 @@
+---
+title: "Fantasy Football Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: default
+    orientation: columns
+---
+
+```{r setup, include=FALSE}
+
+#Load required libraries
+library(readxl)
+library(tidyverse)
+library(plotly)
+library(htmlwidgets)
+library(magick)
+library(gt)
+library(gtExtras)
+library(DT)
+
+# Read in data
+FFL_Table <- read_excel("FFL_Data.xlsx", sheet = "Min Table") %>%
+  # Add a win column if points for are greater than points against
+  mutate(Win = ifelse(`Points For` > `Points Against`, 1, 0)) %>%
+  # Group by team
+  group_by(Team) %>%
+  # Add cumulative win count and cumulative points for/against columns
+  summarize(Win = Win,
+            Wins = cumsum(Win),
+            Week = Week,
+            `Points For` = `Points For`,
+            `Points Against` = `Points Against`,
+            `Cumulative Points For` = cumsum(`Points For`),
+            `Cumulative Points Against` = cumsum(`Points Against`),
+    Image = Image) %>%
+  # Group by team and week
+  group_by(Team, Week) %>%
+  # Add a win-loss variable, win percentage, and keep the rest
+  summarize(
+    Win = Win, 
+    `W-L` = paste0(Wins, "-", parse_number(Week)-Wins),
+    `Win Percentage` = 100*(round(Wins/parse_number(Week), digits = 3)),
+    `Points For` = `Points For`,
+    `Points Against` = `Points Against`,
+    `Cumulative Points For` = `Cumulative Points For`,
+    `Cumulative Points Against` = `Cumulative Points Against`,
+    Image = Image) %>%
+  # Group by week
+  group_by(Week) %>%
+  # Arrange by win percentage then cumulative points for (descending order)
+  arrange(desc(`Win Percentage`), desc(`Cumulative Points For`)) %>%
+  # Add a poisition column based on the arranged data frame
+  mutate(Position = 1:12) %>%
+  arrange(parse_number(Week), Position)
+
+
+# Color palette, variables, etc. 
+ffl_pal <- c(
+  "#f2384d", "#ffdb5b", "#a56f53", "#3d4144", "#3261c2", "#6c5657",
+  "#0070bf", "#6c53a9", "#497566", "#d5af32", "#008f88", "#be748d"
+)
+
+
+### TO DO ###
+  # PRIORITY = Fix L5 Pts and Wins, not in the right order!!!
+  # Plotly updates - highlight, spline, date slider?
+  # DT table, not working
+  # League table background as gray from table
+  # League table position as small column to the left with no name, add images?
+
+```
+
+```{r all play, echo=FALSE}
+
+# All Play Record
+All_Play <- function(Teams, Weeks) {
+  
+  cbind.data.frame(
+    Wins = FFL_Table %>%
+      filter(Week == Weeks) %>%
+      mutate(Points = .[.$Team == Teams, ]$`Points For`,
+             Difference = Points - `Points For`,
+             AP_Win = ifelse(Difference > 0, 1, 0)) %>%
+      .$AP_Win %>%
+      sum(),
+    Teams,
+    Weeks
+  )}
+
+
+Teams <- FFL_Table$Team #unique(FFL_WK2WK$Team)
+Weeks <- FFL_Table$Week #c(paste("Week", 1:4))
+
+
+AP_DF <- map2(
+  .x = Teams,
+  .y = Weeks,
+  .f = All_Play
+) %>%
+  bind_rows()
+
+
+AP_Tbl <- left_join(
+  AP_DF %>%
+    group_by(Teams) %>%
+    summarise(
+      `Total Wins` = sum(Wins),
+      `Total Games` = parse_number(max(FFL_Table$Week))*11,
+      `Win Percentage` = round(`Total Wins`/`Total Games`, digits = 3)) %>%
+    arrange(desc(`Total Wins`)),
+  FFL_Table %>%
+    group_by(Team) %>%
+    summarize(Percentage = sum(Win)/parse_number(max(FFL_Table$Week))),
+  by = c("Teams" = "Team")) %>%
+  mutate(Difference = scales::percent(Percentage - `Win Percentage`),
+         `Win Percentage` = scales::percent(`Win Percentage`),
+         Percentage = scales::percent(Percentage))
+
+colnames(AP_Tbl) <- c("Team", "All Play Wins", "All Play Games", 
+                      "All Play Percent", "Actual Percent", "Difference")
+
+```
+
+League Table
+=====================================  
+
+Row
+-----------------------------------------------------------------------
+
+<br>
+
+####
+
+```{r new gt, echo=FALSE, warning=FALSE}
+
+# Write a function to retrieve the last 5 outcomes for a single team
+Last_Five <- function(team, week, col_var) {
+  
+  outcome_list <- FFL_Table %>%
+    filter(Team == team, Week > week)
+  
+  outcome_list <- outcome_list[[col_var]] 
+  
+  outcome_list <- tibble(
+    Team = team, 
+    L5 = list(outcome_list))
+  
+}
+
+# Iterate over all teams to find last 5 wins and last 5 points for
+L5_Wins <- pmap(
+  .l = list(
+    team = unique(FFL_Table$Team),
+    week = paste("Week", parse_number(max(FFL_Table$Week))-5),
+    "Win"),
+  .f = Last_Five) %>%
+  bind_rows()
+
+L5_Pts <- pmap(
+  .l = list(
+    team = unique(FFL_Table$Team),
+    week = paste("Week", parse_number(max(FFL_Table$Week))-5),
+    "Points For"),
+  .f = Last_Five) %>%
+  bind_rows()
+
+
+
+# Generate the gt table
+
+max_PF <- max(FFL_Table[FFL_Table$Week == max(FFL_Table$Week), ]$`Cumulative Points For`)
+min_PF <- min(FFL_Table[FFL_Table$Week == max(FFL_Table$Week), ]$`Cumulative Points For`)
+max_PA <- max(FFL_Table[FFL_Table$Week == max(FFL_Table$Week), ]$`Cumulative Points Against`)
+min_PA <- min(FFL_Table[FFL_Table$Week == max(FFL_Table$Week), ]$`Cumulative Points Against`)
+
+FFL_Table %>%
+  filter(Week == max(FFL_Table$Week)) %>% ungroup() %>%
+  left_join(L5_Wins, by = "Team") %>%
+  left_join(L5_Pts, by = "Team") %>%
+  left_join(AP_Tbl %>% select(Team, `All Play Percent`), by = "Team") %>%
+  select(Position, Team, `W-L`, `Win Percentage`, `All Play Percent`, 
+         `Cumulative Points For`, `Cumulative Points Against`, "L5 Games" = L5.x, "L5 Points" = L5.y) %>%
+  mutate(`Win Percentage` = scales::percent(`Win Percentage`/100)) %>%
+  gt() %>%
+  data_color(
+    columns = c(`Cumulative Points For`),
+    colors = scales::col_numeric(
+      palette = c("#eb633d", "#ebae34", "#b6eb60", "#0bb83c"),
+      domain = c(min_PF, max_PF)),
+    alpha = 0.7) %>%
+  data_color(
+    columns = c(`Cumulative Points Against`),
+    colors = scales::col_numeric(
+      palette = c("#0bb83c", "#b6eb60", "#ebae34", "#eb633d"),
+      domain = c(min_PA, max_PA)),
+    alpha = 0.7) %>%
+  gt_plt_winloss(`L5 Games`, palette = c("#0bb83c", "#eb633d", "#edf0f0"), max_wins = 5) %>%
+  gt_plt_sparkline(`L5 Points`, type = "ref_mean", same_limit = TRUE,
+                   palette = c("#3d3b3b", "#3d3b3b", "#eb633d", "#0bb83c", "#8a8787")) %>%
+  tab_style(
+    style = list(cell_text(weight = "bold")),
+    locations = cells_body(columns = 2)) %>%
+  cols_width(
+    columns = 1 ~ px(50),
+    columns = 2 ~ px(280),
+    columns = 3:8 ~ px(110),
+    columns = 9 ~px(140)) %>%
+  cols_label(
+    `Cumulative Points For` = "Points For",
+    `Cumulative Points Against` = "Points Against",
+    Position = "") %>% 
+  cols_align(
+    align = "center",
+    columns = c(1, 3:9)) %>%
+  tab_header(
+    title = "League Standings",
+    subtitle = "Beta Hetas and a Worm") %>%
+  gt_theme_guardian()
+
+```
+
+Position by Week
+=====================================  
+
+Row
+-----------------------------------------------------------------------
+
+<br>
+
+###
+
+```{r plotly, warning=FALSE, echo=FALSE, fig.align = 'center'}
+
+# create the base plot using ggplot
+ffl_img <- FFL_Table %>%
+  ggplot(aes(x = Week, y = Position, group = Team)) +
+  geom_hline(yintercept = 6.5, linetype = "dashed", color = "gray", size = 0.3) +
+  geom_point(aes(color = Team,
+                 text = paste0("<b>", Team, "</b>",  
+                               "<br>",
+                               "<br>Position: ", Position,
+                               "<br>Record (Win %): ", `W-L`, " (", scales::percent(`Win Percentage`/100), ")",
+                               "<br>Points For: ", `Points For`,
+                               "<br>Points Against: ", `Points Against`,
+                               "<br>",
+                               "<br>Cumulative Points For: ", `Cumulative Points For`,
+                               "<br>Cumulative Points Against: ", `Cumulative Points Against`))) +
+  geom_line(aes(color = Team), size = 1) +
+  scale_color_manual(values = ffl_pal) +
+  scale_y_continuous(breaks = (seq(from = 1, to = 12, by = 1)),
+                     labels = c(seq(from = 1, to = 12, by = 1))) +
+  labs(title = "Position by Week") +
+  theme_classic() +
+  guides(size = "none") +
+  theme(axis.line.x = element_line(color = "#3b3d3d", size = 1, linetype = "solid"),
+        axis.line.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title = element_blank(),
+        panel.grid.major.y = element_line(linetype = "dashed", color = "#ECE6E4"),
+        aspect.ratio = 1) 
+
+
+# Add images at current week
+mdf <- FFL_Table %>% 
+  filter(Week == max(FFL_Table$Week)) 
+
+
+ig = lapply(1:nrow(mdf),
+            function(i){
+              
+              img <- image_read(mdf[i,]$Image) %>% as.raster()
+              
+              list(source = raster2uri(img),
+                   xref = "paper", yref = "y",
+                   xanchor = "center", yanchor = "middle",
+                   x = 0.92,
+                   y = mdf[i, ]$Position,
+                   sizex = 0.5, sizey = 0.5)
+            })
+
+# Use ggplotly to add interactivity
+ggplotly(ffl_img, tooltip = "text") %>%
+  layout(images = ig) %>%
+  config(modeBarButtonsToRemove = c("pan2d", "autoScale2d", "zoom2d", "zoomIn2d", "zoomOut2d")) %>% 
+  config(displaylogo = FALSE) %>% 
+  onRender("function(el, x) {Plotly.d3.select('.cursor-pointer').style('cursor', 'pointer')}") %>%
+  layout(xaxis = list(fixedrange = TRUE), 
+         yaxis = list(fixedrange = TRUE, autorange = "reversed")) %>%
+  layout(title = list(text = paste0('<b>Position by Week</b>'), 
+                      font = list(color = "#392c3b", size = 16), 
+                      xanchor = "left", x = 0.05, y = 0.95), 
+         legend = list(x = 1.1, y = 0.5, bgcolor = "#fafaf7"), 
+         paper_bgcolor = "#fafaf7", 
+         plot_bgcolor = "#fafaf7", 
+         font = list(size = 11, color = "#392c3b", family = "Arial")) 
+
+```
+
+```{r highlight, include=FALSE}
+
+hi_lite <- highlight_key(FFL_Table %>%
+                           cbind.data.frame(
+                             Date = rep(seq.Date(from = as.Date("2022/09/11"), by = "weeks", 
+                                                 length.out = max(parse_number(FFL_Table$Week))), each = 12)) %>%
+                           select(Team, Date, Position), 
+                         ~Team)
+
+hi_lite %>%
+  plot_ly(x = ~Date, y = ~Position, color = ~Team, mode = "lines+markers") %>%
+  add_trace(line = list(shape = "spline", width = 3), name = ~Team) %>%
+  layout(xaxis = list(rangeslider = list(visible = TRUE),
+                      rangeselector = list(
+                        buttons = list(
+                          list(count = 7, label = "Week", step = "day", stepmode = "backward"),
+                          list(count = 1, label = "Month", step = "month", stepmode = "backward"),
+                          list(step = "all")
+                        ))),
+         showlegend = TRUE,
+         yaxis = list(dtick = 1, autorange = "reversed")) %>%
+  highlight(on = "plotly_click", off = "plotly_doubleclick", color = NULL, opacityDim = 0.4) %>%
+  config(modeBarButtonsToRemove = c("pan2d", "autoScale2d", "zoom2d", "zoomIn2d", "zoomOut2d")) %>% 
+  config(displaylogo = FALSE) %>% 
+  onRender("function(el, x) {Plotly.d3.select('.cursor-pointer').style('cursor', 'pointer')}") %>%
+  layout(xaxis = list(fixedrange = TRUE), 
+         yaxis = list(fixedrange = TRUE, autorange = "reversed")) %>%
+  layout(title = list(text = paste0('<b>Position by Week</b>'), 
+                      font = list(color = "#392c3b", size = 16), 
+                      xanchor = "left", x = 0.05, y = 0.95), 
+         legend = list(x = 1.1, y = 0.5, bgcolor = "#fafaf7"), 
+         paper_bgcolor = "#fafaf7", 
+         plot_bgcolor = "#fafaf7", 
+         font = list(size = 11, color = "#392c3b", family = "Arial")) 
+
+```
+
+Quadrant Chart
+===================================== 
+
+Row
+-----------------------------------------------------------------------
+
+<br>
+
+###
+
+```{r xy scatter}
+
+scatter_df <- FFL_Table %>%
+  filter(Week == max(FFL_Table$Week)) %>%
+  select(Team, `Cumulative Points For`, `Cumulative Points Against`, Position)
+
+# Find the mid point (average) and create low and high ranges for the plot
+mid_pt <- round(mean(scatter_df$`Cumulative Points For`), digits = 0)
+low_range <- mid_pt - 200
+high_range <- mid_pt + 200
+
+
+# Create the scatter plot
+scatter_df %>%
+  # Generate new column with four quadrants based on the mid point (average)
+  mutate(Quadrant = case_when(`Cumulative Points For` > mid_pt & `Cumulative Points Against` > mid_pt   ~ "Q1",
+                              `Cumulative Points For` <= mid_pt & `Cumulative Points Against` > mid_pt  ~ "Q2",
+                              `Cumulative Points For` <= mid_pt & `Cumulative Points Against` <= mid_pt ~ "Q3",
+                              TRUE ~ "Q4"),
+  # Generate new label column that takes the first 1-2 words in Team and adds position in ()
+         Label = map(.x = Team, .f = function(x) {
+           ifelse(nchar(unlist(strsplit(x, " "))[[1]]) > 3,
+                  paste0(unlist(strsplit(x, " "))[[1]], 
+                         " (", scatter_df[scatter_df$Team == x, ]$Position, ")"),
+                  paste0(unlist(strsplit(x, " "))[[1]], " ", unlist(strsplit(x, " "))[[2]], 
+                         " (", scatter_df[scatter_df$Team == x, ]$Position, ")" ))
+           
+         })) %>%
+  ggplot(aes(`Cumulative Points Against`, `Cumulative Points For`, label = Label, color = Quadrant)) +
+  geom_hline(yintercept = mid_pt, color = "#4d4e4f", linetype = "dotted", size = 1) +
+  geom_vline(xintercept = mid_pt, color = "#4d4e4f", linetype = "dotted", size = 1) +
+  geom_point(size = 3) +
+  scale_color_manual(values = c("#b6eb60", "#eb633d", "#ebae34","#0bb83c")) +
+  ggrepel::geom_label_repel(aes(color = Quadrant), size = 3, fill = "white", 
+                            min.segment.length = unit(0, "lines"), fontface = "bold") +
+  scale_y_continuous(limits = c(low_range, high_range), 
+                     breaks = c(low_range + 100, high_range - 100),
+                     labels = c("Below Average \n Points For", "Above Average \n Points For")) +
+  scale_x_continuous(limits = c(low_range, high_range), breaks = c(low_range + 100, high_range - 100),
+                     labels = c("Below Average \n Points Against", "Above Average \n Points Against")) +
+  coord_fixed(ratio = 1, clip = 'off') +
+  theme_classic() +
+  labs(x = "", y = "", title = "Points For vs Points Against") +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5),
+        axis.line = element_line(colour = "#4d4e4f", size = 1),
+        panel.background = element_rect(fill = "#f5f4f0"),
+        panel.border = element_rect(color = "#4d4e4f", fill = NA, size = 1))
+
+```
+
+Input Data Table
+===================================== 
+
+<br>
+
+**Under Construction...**
+
+Row
+-----------------------------------------------------------------------
+
+<br>
+
+###
+
+```{r data table, include=FALSE}
+
+datatable(FFL_Table %>% 
+            select(-Win, -Image) %>%
+            arrange(Week, Position), rownames = FALSE,
+          filter = 'top', options = list(pageLength = 12, autowidth = TRUE))
+
+```
+
+
