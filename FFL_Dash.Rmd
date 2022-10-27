@@ -62,8 +62,12 @@ ffl_pal <- c(
 
 
 ### TO DO ###
-  # Plotly updates - highlight, spline, date slider?
-  # DT table, not working
+  # Plotly updates - highlight, spline, date slider? Not working with image at end point atm
+  # Add DT table, currently not working
+  # gt() all text black? 
+  # Add favicon for the dash
+  # Add tab icons
+  # Update readme file with current league table, better description, more details  
 
 ```
 
@@ -85,8 +89,8 @@ All_Play <- function(Teams, Weeks) {
   )}
 
 
-Teams <- FFL_Table$Team #unique(FFL_WK2WK$Team)
-Weeks <- FFL_Table$Week #c(paste("Week", 1:4))
+Teams <- FFL_Table$Team 
+Weeks <- FFL_Table$Week
 
 
 AP_DF <- map2(
@@ -208,7 +212,7 @@ FFL_Table %>%
     columns = 1 ~ px(50),
     columns = 2 ~ px(40),
     columns = 3 ~ px(260),
-    columns = 3:9 ~ px(100),
+    columns = 4:9 ~ px(100),
     columns = 10 ~px(140)) %>%
   # Update column names
   cols_label(
