@@ -9,6 +9,16 @@ output:
 ```{r setup, include=FALSE}
 
 #Load required libraries
+if (!require(readxl)) install.packages('readxl')
+if (!require(tidyverse)) install.packages('tidyverse')
+if (!require(plotly)) install.packages('plotly')
+if (!require(htmlwidgets)) install.packages('htmlwidgets')
+if (!require(magick)) install.packages('magick')
+if (!require(gt)) install.packages('gt')
+if (!require(gtExtras)) install.packages('gtExtras')
+if (!require(DT)) install.packages('DT')
+if (!require(ggrepel)) install.packages('ggrepel')
+
 library(readxl)
 library(tidyverse)
 library(plotly)
@@ -17,6 +27,7 @@ library(magick)
 library(gt)
 library(gtExtras)
 library(DT)
+library(ggrepel)
 
 # Read in data
 FFL_Table <- read_excel("FFL_Data.xlsx", sheet = "Min Table") %>%
@@ -395,7 +406,7 @@ scatter_df %>%
   geom_vline(xintercept = mid_pt, color = "#4d4e4f", linetype = "dotted", size = 1) +
   geom_point(size = 3) +
   scale_color_manual(values = c("#b6eb60", "#eb633d", "#ebae34","#0bb83c")) +
-  ggrepel::geom_label_repel(aes(color = Quadrant), size = 3, fill = "white", 
+  geom_label_repel(aes(color = Quadrant), size = 3, fill = "white", 
                             min.segment.length = unit(0, "lines"), fontface = "bold") +
   scale_y_continuous(limits = c(low_range, high_range), 
                      breaks = c(low_range + 100, high_range - 100),
