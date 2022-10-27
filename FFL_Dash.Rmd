@@ -75,7 +75,8 @@ ffl_pal <- c(
 ### TO DO ###
   # Plotly updates - highlight, spline, date slider? Not working with image at end point atm
   # Add DT table, currently not working
-  # gt() all text black? 
+  # gt() table all text black? 
+  # gt() table - all numeric values to 1 decimal spot! 
   # Add favicon for the dash
   # Add tab icons
   # Update readme file with current league table, better description, more details  
