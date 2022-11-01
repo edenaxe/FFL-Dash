@@ -438,31 +438,44 @@ Row
 
 ```{r}
 
+# Create a function that one team and another team's schedule and finds win percentage
 What_If <- function(team, schedule) {
   
   cbind.data.frame(
     Team_Pts = FFL_Table %>% filter(Team == team) %>% .$`Points For`,
     Schedule_Pts = FFL_Table %>% filter(Team == schedule) %>% .$`Points Against`) %>%
-    mutate(Win = ifelse(Team_Pts > Schedule_Pts, 1, 
-                        ifelse(Team_Pts == Schedule_Pts, NA, 0))) %>%
+    mutate(Win = ifelse(Team_Pts > Schedule_Pts, 1, ifelse(Team_Pts == Schedule_Pts, NA, 0))) %>%
     drop_na(Win) %>%
     summarize(`Win Percentage` = round(sum(Win)/n(), digits = 3)) %>%
     mutate("Team" = team, "Schedule" = schedule) 
   
 }
 
-
+# Apply the above function to every team x team possibility 
 WI_df <- map2(.x = expand.grid(unique(FFL_Table$Team), unique(FFL_Table$Team))$Var1,
               .y = expand.grid(unique(FFL_Table$Team), unique(FFL_Table$Team))$Var2,
               .f = What_If) %>%
   bind_rows()
 
 
+# Subtitle text 
 sub_txt <- "Wondering how the schedule shuffle changed our fate? This table shows what each teams' record (win percentage) would be if they played other teams' schedules. It omits any games they would have played against themselves. Wait, what's that? You also noticed that our league commissioner has the softest schedule. It's a little weird, right. I mean it's statistically possible, but definitely gives us the right to speculate wildly. Is this league rigged? Could be. How far up to does this go!? Maybe higher than you think. Kickbacks from Yahoo? Sure. Related to that new Twitter drama? It's possible. The point is, this What If Analysis helps your imagination run free. Enjoy!"
 
 
+# Find the schedules ranking order (easiest to hardest) 
+schedule_rank <- WI_df %>%
+  group_by(Schedule) %>%
+  summarize(Mean = mean(`Win Percentage`)) %>%
+  arrange(desc(Mean)) %>%
+  .$Schedule %>%
+  as.character()
+
+
+# Pivot wider and generate the gt() table
 WI_df %>%
   pivot_wider(names_from = Team, values_from = `Win Percentage`) %>%
+  select(Schedule, schedule_rank) %>%
+  arrange(factor(Schedule, levels = schedule_rank)) %>%
   gt() %>%
   data_color(
     columns = 2:13,
@@ -470,15 +483,12 @@ WI_df %>%
       palette = c("#eb633d", "#ebae34", "#b6eb60", "#0bb83c"),
       domain = c(0, 1)),
     alpha = 0.8) %>%
-  # Bold the team name column
   tab_style(
     style = list(cell_text(weight = "bold")),
     locations = cells_body(columns = 1)) %>%
-  # Adjust column widths for better aesthetics 
   cols_width(
     columns = 1 ~ px(200),
     columns = 2:13 ~ px(60)) %>%
-  # Align the columns, centered except the team name
   cols_align(
     align = "center",
     columns = c(2:13)) %>%
