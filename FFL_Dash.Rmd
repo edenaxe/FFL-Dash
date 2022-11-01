@@ -41,8 +41,8 @@ FFL_Table <- read_excel("FFL_Data.xlsx", sheet = "Min Table") %>%
             Week = Week,
             `Points For` = `Points For`,
             `Points Against` = `Points Against`,
-            `Cumulative Points For` = cumsum(`Points For`),
-            `Cumulative Points Against` = cumsum(`Points Against`),
+            `Cumulative Points For` = round(cumsum(`Points For`), digits = 1),
+            `Cumulative Points Against` = round(cumsum(`Points Against`), digits = 1),
     Image = Image) %>%
   # Group by team and week
   group_by(Team, Week) %>%
@@ -76,10 +76,8 @@ ffl_pal <- c(
   # Plotly updates - highlight, spline, date slider? Not working with image at end point atm
   # Add DT table, currently not working
   # gt() table all text black? 
-  # gt() table - all numeric values to 1 decimal spot! 
   # Add favicon for the dash
   # Add tab icons
-  # Update readme file with current league table, better description, more details  
 
 ```
 
@@ -119,7 +117,7 @@ AP_Tbl <- left_join(
     summarise(
       `Total Wins` = sum(Wins),
       `Total Games` = parse_number(max(FFL_Table$Week))*11,
-      `Win Percentage` = round(`Total Wins`/`Total Games`, digits = 3)) %>%
+      `Win Percentage` = round(`Total Wins`/`Total Games`, digits = 4)) %>%
     arrange(desc(`Total Wins`)),
   FFL_Table %>%
     group_by(Team) %>%
@@ -193,7 +191,7 @@ FFL_Table %>%
   left_join(AP_Tbl %>% select(Team, `All Play Percent`), by = "Team") %>%
   select(Position, Image, Team, `W-L`, `Win Percentage`, `All Play Percent`, 
          `Cumulative Points For`, `Cumulative Points Against`, "L5 Games" = L5.x, "L5 Points" = L5.y) %>%
-  mutate(`Win Percentage` = scales::percent(`Win Percentage`/100)) %>%
+  mutate(`Win Percentage` = scales::percent(`Win Percentage`/100, accuracy = 0.1)) %>%
   # Generate the gt() table
   gt() %>%
   # Color the points for column based on min and max values
@@ -219,6 +217,9 @@ FFL_Table %>%
   tab_style(
     style = list(cell_text(weight = "bold")),
     locations = cells_body(columns = 3)) %>%
+  tab_style(
+    style = list(cell_text(color = "#2b2b2b")),
+    locations = cells_body(columns = 4:8)) %>%
   # Adjust column widths for better aesthetics 
   cols_width(
     columns = 1 ~ px(50),
@@ -239,11 +240,11 @@ FFL_Table %>%
   # Add icons using text transform
   text_transform(
     locations = cells_body(columns = Image),
-      fn = function(x) {
-       local_image(
-          filename = FFL_Table[FFL_Table$Week == max(FFL_Table$Week), ]$Image,
-          height = 25)
-          }) %>%
+    fn = function(x) {
+      local_image(
+        filename = FFL_Table[FFL_Table$Week == max(FFL_Table$Week), ]$Image,
+        height = 25)
+    }) %>%
   tab_header(
     title = "League Standings",
     subtitle = "Beta Hetas and a Worm") %>%
@@ -303,7 +304,7 @@ ig = lapply(1:nrow(mdf),
               list(source = raster2uri(img),
                    xref = "paper", yref = "y",
                    xanchor = "center", yanchor = "middle",
-                   x = 0.92,
+                   x = 0.93,
                    y = mdf[i, ]$Position,
                    sizex = 0.5, sizey = 0.5)
             })
@@ -311,44 +312,6 @@ ig = lapply(1:nrow(mdf),
 # Use ggplotly to add interactivity
 ggplotly(ffl_img, tooltip = "text") %>%
   layout(images = ig) %>%
-  config(modeBarButtonsToRemove = c("pan2d", "autoScale2d", "zoom2d", "zoomIn2d", "zoomOut2d")) %>% 
-  config(displaylogo = FALSE) %>% 
-  onRender("function(el, x) {Plotly.d3.select('.cursor-pointer').style('cursor', 'pointer')}") %>%
-  layout(xaxis = list(fixedrange = TRUE), 
-         yaxis = list(fixedrange = TRUE, autorange = "reversed")) %>%
-  layout(title = list(text = paste0('<b>Position by Week</b>'), 
-                      font = list(color = "#392c3b", size = 16), 
-                      xanchor = "left", x = 0.05, y = 0.95), 
-         legend = list(x = 1.1, y = 0.5, bgcolor = "#fafaf7"), 
-         paper_bgcolor = "#fafaf7", 
-         plot_bgcolor = "#fafaf7", 
-         font = list(size = 11, color = "#392c3b", family = "Arial")) 
-
-```
-
-
-```{r highlight, include=FALSE}
-
-hi_lite <- highlight_key(FFL_Table %>%
-                           cbind.data.frame(
-                             Date = rep(seq.Date(from = as.Date("2022/09/11"), by = "weeks", 
-                                                 length.out = max(parse_number(FFL_Table$Week))), each = 12)) %>%
-                           select(Team, Date, Position), 
-                         ~Team)
-
-hi_lite %>%
-  plot_ly(x = ~Date, y = ~Position, color = ~Team, mode = "lines+markers") %>%
-  add_trace(line = list(shape = "spline", width = 3), name = ~Team) %>%
-  layout(xaxis = list(rangeslider = list(visible = TRUE),
-                      rangeselector = list(
-                        buttons = list(
-                          list(count = 7, label = "Week", step = "day", stepmode = "backward"),
-                          list(count = 1, label = "Month", step = "month", stepmode = "backward"),
-                          list(step = "all")
-                        ))),
-         showlegend = TRUE,
-         yaxis = list(dtick = 1, autorange = "reversed")) %>%
-  highlight(on = "plotly_click", off = "plotly_doubleclick", color = NULL, opacityDim = 0.4) %>%
   config(modeBarButtonsToRemove = c("pan2d", "autoScale2d", "zoom2d", "zoomIn2d", "zoomOut2d")) %>% 
   config(displaylogo = FALSE) %>% 
   onRender("function(el, x) {Plotly.d3.select('.cursor-pointer').style('cursor', 'pointer')}") %>%
@@ -425,7 +388,120 @@ scatter_df %>%
 
 ```
 
-Input Data Table
+Box Plot 
+===================================== 
+
+Row
+-----------------------------------------------------------------------
+
+<br>
+
+###
+
+```{r boxplot}
+
+FFL_Table %>%
+  ggplot(aes(x = fct_reorder(Team, `Points For`, .fun = 'median'), 
+             y = `Points For`, fill = Team)) +
+  geom_hline(yintercept = sum(FFL_Table$`Points For`)/(12*parse_number(max(FFL_Table$Week))),
+             color = "#5f6161", size = 1) +
+  geom_boxplot(alpha = 1) + 
+  scale_fill_manual(values = ffl_pal) +
+  coord_flip() +
+  theme_classic() +
+  labs(title = "Points Boxplot", subtitle = "[Through Week 8]") +
+  guides(fill = "none") +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5, color = "#5f6161"),
+        plot.subtitle = element_text(hjust = 0.5, color = "#5f6161"),
+        axis.line.x = element_line(color = "#5f6161", size = 1, linetype = "solid"),
+        axis.line.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title = element_blank(),
+        panel.background = element_rect(fill = "#f5f4f0"),
+        panel.grid.major.y = element_line(linetype = "dashed", color = "white"),
+        aspect.ratio = 1) 
+
+```
+
+
+Schedules - What If?  
+===================================== 
+
+Row
+-----------------------------------------------------------------------
+
+<br>
+
+###
+
+
+```{r}
+
+What_If <- function(team, schedule) {
+  
+  cbind.data.frame(
+    Team_Pts = FFL_Table %>% filter(Team == team) %>% .$`Points For`,
+    Schedule_Pts = FFL_Table %>% filter(Team == schedule) %>% .$`Points Against`) %>%
+    mutate(Win = ifelse(Team_Pts > Schedule_Pts, 1, 
+                        ifelse(Team_Pts == Schedule_Pts, NA, 0))) %>%
+    drop_na(Win) %>%
+    summarize(`Win Percentage` = round(sum(Win)/n(), digits = 3)) %>%
+    mutate("Team" = team, "Schedule" = schedule) 
+  
+}
+
+
+WI_df <- map2(.x = expand.grid(unique(FFL_Table$Team), unique(FFL_Table$Team))$Var1,
+              .y = expand.grid(unique(FFL_Table$Team), unique(FFL_Table$Team))$Var2,
+              .f = What_If) %>%
+  bind_rows()
+
+
+sub_txt <- "Wondering how the schedule shuffle changed our fate? This table shows what each teams' record (win percentage) would be if they played other teams' schedules. It omits any games they would have played against themselves. Wait, what's that? You also noticed that our league commissioner has the softest schedule. It's a little weird, right. I mean it's statistically possible, but definitely gives us the right to speculate wildly. Is this league rigged? Could be. How far up to does this go!? Maybe higher than you think. Kickbacks from Yahoo? Sure. Related to that new Twitter drama? It's possible. The point is, this What If Analysis helps your imagination run free. Enjoy!"
+
+
+WI_df %>%
+  pivot_wider(names_from = Team, values_from = `Win Percentage`) %>%
+  gt() %>%
+  data_color(
+    columns = 2:13,
+    colors = scales::col_numeric(
+      palette = c("#eb633d", "#ebae34", "#b6eb60", "#0bb83c"),
+      domain = c(0, 1)),
+    alpha = 0.8) %>%
+  # Bold the team name column
+  tab_style(
+    style = list(cell_text(weight = "bold")),
+    locations = cells_body(columns = 1)) %>%
+  # Adjust column widths for better aesthetics 
+  cols_width(
+    columns = 1 ~ px(200),
+    columns = 2:13 ~ px(60)) %>%
+  # Align the columns, centered except the team name
+  cols_align(
+    align = "center",
+    columns = c(2:13)) %>%
+  cols_align(
+    align = "left",
+    columns = c(1)) %>%
+  fmt_percent(
+    columns = c(2:13),
+    decimals = 1) %>%
+    tab_header(
+    title = "Schedule - What if Analysis",
+    subtitle = sub_txt) %>%
+  gt_theme_espn() %>%
+    tab_style(
+    style = list(cell_text(color = "#2b2b2b")),
+    locations = cells_body(columns = 2:13)) %>%
+  tab_options(
+    table.font.size = '12px') 
+
+```
+
+
+Extras
 ===================================== 
 
 <br>
@@ -441,11 +517,82 @@ Row
 
 ```{r data table, include=FALSE}
 
-datatable(FFL_Table %>% 
-            select(-Win, -Image) %>%
-            arrange(Week, Position), rownames = FALSE,
-          filter = 'top', options = list(pageLength = 12, autowidth = TRUE))
+dt_table <- DT::datatable(FFL_Table %>% select(-Win, -Image) %>% arrange(Week, Position), 
+                      rownames = FALSE, filter = 'top', options = list(pageLength = 12, autowidth = TRUE))
+
+dt_table
 
 ```
 
+```{r highlight, include=FALSE}
+
+hi_lite <- highlight_key(FFL_Table %>%
+                           cbind.data.frame(
+                             Date = rep(seq.Date(from = as.Date("2022/09/11"), by = "weeks", 
+                                                 length.out = max(parse_number(FFL_Table$Week))), each = 12)) %>%
+                           select(Team, Date, Position), 
+                         ~Team)
+
+hi_lite %>%
+  plot_ly(x = ~Date, y = ~Position, color = ~Team, mode = "lines+markers") %>%
+  add_trace(line = list(shape = "spline", width = 3), name = ~Team) %>%
+  layout(xaxis = list(rangeslider = list(visible = TRUE),
+                      rangeselector = list(
+                        buttons = list(
+                          list(count = 7, label = "Week", step = "day", stepmode = "backward"),
+                          list(count = 1, label = "Month", step = "month", stepmode = "backward"),
+                          list(step = "all")
+                        ))),
+         showlegend = TRUE,
+         yaxis = list(dtick = 1, autorange = "reversed")) %>%
+  highlight(on = "plotly_click", off = "plotly_doubleclick", color = NULL, opacityDim = 0.4) %>%
+  config(modeBarButtonsToRemove = c("pan2d", "autoScale2d", "zoom2d", "zoomIn2d", "zoomOut2d")) %>% 
+  config(displaylogo = FALSE) %>% 
+  onRender("function(el, x) {Plotly.d3.select('.cursor-pointer').style('cursor', 'pointer')}") %>%
+  layout(xaxis = list(fixedrange = TRUE), 
+         yaxis = list(fixedrange = TRUE, autorange = "reversed")) %>%
+  layout(title = list(text = paste0('<b>Position by Week</b>'), 
+                      font = list(color = "#392c3b", size = 16), 
+                      xanchor = "left", x = 0.05, y = 0.95), 
+         legend = list(x = 1.1, y = 0.5, bgcolor = "#fafaf7"), 
+         paper_bgcolor = "#fafaf7", 
+         plot_bgcolor = "#fafaf7", 
+         font = list(size = 11, color = "#392c3b", family = "Arial")) 
+
+```
+
+```{r AP Tiles, include=FALSE}
+
+AP_Tiles <- function(team) {
+  
+  team_pts <- rep(FFL_Table %>% 
+                    filter(Team == team) %>% 
+                    .$`Points For`,
+                  each = 11)   
+  
+  FFL_Table %>%
+    filter(Team != team) %>% 
+    cbind.data.frame("Team Points" = team_pts) %>%
+    mutate(Difference = round(`Team Points` - `Points For`, digits = 1),
+           WL = ifelse(Difference > 0, "Win", "Loss"),
+           Focus = team) %>%
+    select(Week, Team, Difference, WL, Focus)
+  
+}
+
+
+AP_Tile_DF <- map(.x = unique(FFL_Table$Team), .f = AP_Tiles) %>%
+  bind_rows() 
+
+AP_Tile_DF %>%
+  ggplot(aes(x = Week, y = Team, fill = WL)) +
+  geom_tile() +
+  scale_fill_manual(values = c("#eb633d", "#0bb83c")) +
+  facet_wrap(~Focus) +
+  theme_dark() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  labs(x = "", y = "")
+
+
+```
 
