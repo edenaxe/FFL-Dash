@@ -3,7 +3,7 @@
 <br>
 
 ### Access the live dashboard [here](https://edenaxe.github.io/FFL-Dash/Output/FFL_Dash.html)
-(Latest Update = Week 7, 10/25/2022)
+(Latest Update = Week 8, 11/01/2022)
 
 <br> 
 
@@ -17,6 +17,8 @@ Currently, the dashboard generates and displays the following visuals:
 - An overall league table with current standings 
 - A week by week position chart  
 - A quadrant chart 
+- A points boxplot chart
+- A schedule what if analysis table
 
 -------------------------------------------
 
