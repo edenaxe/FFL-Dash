@@ -67,8 +67,8 @@ FFL_Table <- read_excel("FFL_Data.xlsx", sheet = "Min Table") %>%
 
 # Color palette, variables, etc. 
 ffl_pal <- c(
-  "#f2384d", "#ffdb5b", "#a56f53", "#3d4144", "#3261c2", "#6c5657",
-  "#0070bf", "#6c53a9", "#497566", "#d5af32", "#008f88", "#be748d"
+  "#f2384d", "#ffdb5b", "#a56f53", "#575b5e", "#3261c2", "#6c5657",
+  "#0070bf", "#6c53a9", "#4d806e", "#d5af32", "#24423c", "#269F99"
 )
 
 
@@ -321,6 +321,7 @@ ggplotly(ffl_img, tooltip = "text") %>%
                       font = list(color = "#392c3b", size = 16), 
                       xanchor = "left", x = 0.05, y = 0.95), 
          legend = list(x = 1.1, y = 0.5, bgcolor = "#fafaf7"), 
+         margin = list(pad = 10),
          paper_bgcolor = "#fafaf7", 
          plot_bgcolor = "#fafaf7", 
          font = list(size = 11, color = "#392c3b", family = "Arial")) 
