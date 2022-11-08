@@ -3,7 +3,7 @@
 <br>
 
 ### Access the live dashboard [here](https://edenaxe.github.io/FFL-Dash/Output/FFL_Dash.html)
-(Latest Update = Week 8, 11/01/2022)
+(Latest Update = Week 9, 11/08/2022)
 
 <br> 
 
