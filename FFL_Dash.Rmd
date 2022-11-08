@@ -304,7 +304,7 @@ ig = lapply(1:nrow(mdf),
               list(source = raster2uri(img),
                    xref = "paper", yref = "y",
                    xanchor = "center", yanchor = "middle",
-                   x = 0.93,
+                   x = 0.94,
                    y = mdf[i, ]$Position,
                    sizex = 0.5, sizey = 0.5)
             })
@@ -459,7 +459,7 @@ WI_df <- map2(.x = expand.grid(unique(FFL_Table$Team), unique(FFL_Table$Team))$V
 
 
 # Subtitle text 
-sub_txt <- "Wondering how the schedule shuffle changed our fate? This table shows what each teams' record (win percentage) would be if they played other teams' schedules. It omits any games they would have played against themselves. Wait, what's that? You also noticed that our league commissioner has the softest schedule. It's a little weird, right. I mean it's statistically possible, but definitely gives us the right to speculate wildly. Is this league rigged? Could be. How far up to does this go!? Maybe higher than you think. Kickbacks from Yahoo? Sure. Related to that new Twitter drama? It's possible. The point is, this What If Analysis helps your imagination run free. Enjoy!"
+sub_txt <- "Wondering how the schedule shuffle changed our fate? This table shows what each teams' record (win percentage) would be if they played other teams' schedules. It omits any games they would have played against themselves. The teams are arranged by mean schedule win percentage. Wait, what's that? You also noticed that our league commissioner has the softest schedule. It's a little weird, right. I mean it's statistically possible, but definitely gives us the right to speculate wildly. Is this league rigged? Could be. How far up to does this go!? Maybe higher than you think. Kickbacks from Yahoo? Sure. Related to that new Twitter drama? It's possible. The point is, this What If Analysis helps your imagination run free. Enjoy!"
 
 
 # Find the schedules ranking order (easiest to hardest) 
