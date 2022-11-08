@@ -132,15 +132,13 @@ colnames(AP_Tbl) <- c("Team", "All Play Wins", "All Play Games",
 
 ```
 
-League Table
-=====================================  
+# League Table
 
-Row
------------------------------------------------------------------------
+## Row
 
 <br>
 
-####
+#### 
 
 ```{r new gt, echo=FALSE, warning=FALSE}
 
@@ -252,13 +250,11 @@ FFL_Table %>%
 
 ```
 
-Position by Week
-=====================================  
+# Position by Week
 
-Row
------------------------------------------------------------------------
+## Row
 
-###
+### 
 
 ```{r plotly, warning=FALSE, echo=FALSE, fig.align = 'center'}
 
@@ -328,15 +324,13 @@ ggplotly(ffl_img, tooltip = "text") %>%
 
 ```
 
-Quadrant Chart
-===================================== 
+# Quadrant Chart
 
-Row
------------------------------------------------------------------------
+## Row
 
 <br>
 
-###
+### 
 
 ```{r xy scatter}
 
@@ -389,15 +383,13 @@ scatter_df %>%
 
 ```
 
-Box Plot 
-===================================== 
+# Box Plot
 
-Row
------------------------------------------------------------------------
+## Row
 
 <br>
 
-###
+### 
 
 ```{r boxplot}
 
@@ -425,17 +417,13 @@ FFL_Table %>%
 
 ```
 
+# Schedules - What If?
 
-Schedules - What If?  
-===================================== 
-
-Row
------------------------------------------------------------------------
+## Row
 
 <br>
 
-###
-
+### 
 
 ```{r}
 
@@ -511,27 +499,29 @@ WI_df %>%
 
 ```
 
-
-Extras
-===================================== 
+# Extras
 
 <br>
 
 **Under Construction...**
 
-Row
------------------------------------------------------------------------
+## Row
 
 <br>
 
-###
+### 
 
-```{r data table, include=FALSE}
+```{r DT}
 
-dt_table <- DT::datatable(FFL_Table %>% select(-Win, -Image) %>% arrange(Week, Position), 
-                      rownames = FALSE, filter = 'top', options = list(pageLength = 12, autowidth = TRUE))
-
-dt_table
+FFL_Table %>% 
+  select(-Win, -Image) %>% 
+  arrange(Week, Position) %>%
+  datatable(extensions = 'Buttons', rownames = FALSE, filter = 'top', 
+            options = list(buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+                           columnDefs = list(list(className = 'dt-center', targets = 2:8)),
+                           pageLength = 12, 
+                           autowidth = TRUE,
+                           dom = 'Blfrtip'))
 
 ```
 
@@ -571,39 +561,3 @@ hi_lite %>%
          font = list(size = 11, color = "#392c3b", family = "Arial")) 
 
 ```
-
-```{r AP Tiles, include=FALSE}
-
-AP_Tiles <- function(team) {
-  
-  team_pts <- rep(FFL_Table %>% 
-                    filter(Team == team) %>% 
-                    .$`Points For`,
-                  each = 11)   
-  
-  FFL_Table %>%
-    filter(Team != team) %>% 
-    cbind.data.frame("Team Points" = team_pts) %>%
-    mutate(Difference = round(`Team Points` - `Points For`, digits = 1),
-           WL = ifelse(Difference > 0, "Win", "Loss"),
-           Focus = team) %>%
-    select(Week, Team, Difference, WL, Focus)
-  
-}
-
-
-AP_Tile_DF <- map(.x = unique(FFL_Table$Team), .f = AP_Tiles) %>%
-  bind_rows() 
-
-AP_Tile_DF %>%
-  ggplot(aes(x = Week, y = Team, fill = WL)) +
-  geom_tile() +
-  scale_fill_manual(values = c("#eb633d", "#0bb83c")) +
-  facet_wrap(~Focus) +
-  theme_dark() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
-  labs(x = "", y = "")
-
-
-```
-
