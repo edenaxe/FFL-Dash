@@ -67,17 +67,11 @@ FFL_Table <- read_excel("FFL_Data.xlsx", sheet = "Min Table") %>%
 
 # Color palette, variables, etc. 
 ffl_pal <- c(
-  "#f2384d", "#ffdb5b", "#a56f53", "#575b5e", "#3261c2", "#6c5657",
-  "#0070bf", "#6c53a9", "#4d806e", "#d5af32", "#24423c", "#269F99"
+  "#327FFF", "#70C624", "#a56f53", "#575b5e", "#3261c2", "#FFB426",  
+  "#6c5657", "#0070bf", "#6c53a9", "#4d806e", "#d5af32", "#269F99"
 )
 
-
-### TO DO ###
-  # Plotly updates - highlight, spline, date slider? Not working with image at end point atm
-  # Add DT table, currently not working
-  # gt() table all text black? 
-  # Add favicon for the dash
-  # Add tab icons
+current_wk <- paste("Week", max(parse_number(FFL_Table$Week)))
 
 ```
 
@@ -116,12 +110,12 @@ AP_Tbl <- left_join(
     group_by(Teams) %>%
     summarise(
       `Total Wins` = sum(Wins),
-      `Total Games` = parse_number(max(FFL_Table$Week))*11,
+      `Total Games` = parse_number(current_wk)*11,
       `Win Percentage` = round(`Total Wins`/`Total Games`, digits = 4)) %>%
     arrange(desc(`Total Wins`)),
   FFL_Table %>%
     group_by(Team) %>%
-    summarize(Percentage = sum(Win)/parse_number(max(FFL_Table$Week))),
+    summarize(Percentage = sum(Win)/parse_number(current_wk)),
   by = c("Teams" = "Team")) %>%
   mutate(Difference = scales::percent(Percentage - `Win Percentage`),
          `Win Percentage` = scales::percent(`Win Percentage`),
@@ -146,7 +140,7 @@ colnames(AP_Tbl) <- c("Team", "All Play Wins", "All Play Games",
 Last_Five <- function(team, week, col_var) {
   
   outcome_list <- FFL_Table %>%
-    filter(Team == team, Week > week)
+    filter(Team == team, parse_number(Week) > week)
   
   outcome_list <- outcome_list[[col_var]] 
   
@@ -160,7 +154,7 @@ Last_Five <- function(team, week, col_var) {
 L5_Wins <- pmap(
   .l = list(
     team = unique(FFL_Table$Team),
-    week = paste("Week", parse_number(max(FFL_Table$Week))-5),
+    week = parse_number(current_wk)-5,
     "Win"),
   .f = Last_Five) %>%
   bind_rows()
@@ -168,22 +162,22 @@ L5_Wins <- pmap(
 L5_Pts <- pmap(
   .l = list(
     team = unique(FFL_Table$Team),
-    week = paste("Week", parse_number(max(FFL_Table$Week))-5),
+    week = parse_number(current_wk)-5,
     "Points For"),
   .f = Last_Five) %>%
   bind_rows()
 
 
 # Define max and min values for Points For and Points Against
-max_PF <- max(FFL_Table[FFL_Table$Week == max(FFL_Table$Week), ]$`Cumulative Points For`)
-min_PF <- min(FFL_Table[FFL_Table$Week == max(FFL_Table$Week), ]$`Cumulative Points For`)
-max_PA <- max(FFL_Table[FFL_Table$Week == max(FFL_Table$Week), ]$`Cumulative Points Against`)
-min_PA <- min(FFL_Table[FFL_Table$Week == max(FFL_Table$Week), ]$`Cumulative Points Against`)
+max_PF <- max(FFL_Table[FFL_Table$Week == current_wk, ]$`Cumulative Points For`)
+min_PF <- min(FFL_Table[FFL_Table$Week == current_wk, ]$`Cumulative Points For`)
+max_PA <- max(FFL_Table[FFL_Table$Week == current_wk, ]$`Cumulative Points Against`)
+min_PA <- min(FFL_Table[FFL_Table$Week == current_wk, ]$`Cumulative Points Against`)
 
 
 # Generate the gt table
 FFL_Table %>%
-  filter(Week == max(FFL_Table$Week)) %>% ungroup() %>%
+  filter(Week == current_wk) %>% ungroup() %>%
   left_join(L5_Wins, by = "Team") %>%
   left_join(L5_Pts, by = "Team") %>%
   left_join(AP_Tbl %>% select(Team, `All Play Percent`), by = "Team") %>%
@@ -240,7 +234,7 @@ FFL_Table %>%
     locations = cells_body(columns = Image),
     fn = function(x) {
       local_image(
-        filename = FFL_Table[FFL_Table$Week == max(FFL_Table$Week), ]$Image,
+        filename = FFL_Table[FFL_Table$Week == current_wk, ]$Image,
         height = 25)
     }) %>%
   tab_header(
@@ -260,7 +254,8 @@ FFL_Table %>%
 
 # create the base plot using ggplot
 ffl_img <- FFL_Table %>%
-  ggplot(aes(x = Week, y = Position, group = Team)) +
+  ggplot(aes(x = factor(Week, level = paste("Week", 1:16)), 
+             y = Position, group = Team)) +
   geom_hline(yintercept = 6.5, linetype = "dashed", color = "gray", size = 0.3) +
   geom_point(aes(color = Team,
                  text = paste0("<b>", Team, "</b>",  
@@ -289,7 +284,7 @@ ffl_img <- FFL_Table %>%
 
 # Add images at current week
 mdf <- FFL_Table %>% 
-  filter(Week == max(FFL_Table$Week)) 
+  filter(Week == current_wk) 
 
 
 ig = lapply(1:nrow(mdf),
@@ -335,7 +330,7 @@ ggplotly(ffl_img, tooltip = "text") %>%
 ```{r xy scatter}
 
 scatter_df <- FFL_Table %>%
-  filter(Week == max(FFL_Table$Week)) %>%
+  filter(Week == current_wk) %>%
   select(Team, `Cumulative Points For`, `Cumulative Points Against`, Position)
 
 # Find the mid point (average) and create low and high ranges for the plot
@@ -351,7 +346,7 @@ scatter_df %>%
                               `Cumulative Points For` <= mid_pt & `Cumulative Points Against` > mid_pt  ~ "Q2",
                               `Cumulative Points For` <= mid_pt & `Cumulative Points Against` <= mid_pt ~ "Q3",
                               TRUE ~ "Q4"),
-  # Generate new label column that takes the first 1-2 words in Team and adds position in ()
+         # Generate new label column that takes the first 1-2 words in Team and adds position in ()
          Label = map(.x = Team, .f = function(x) {
            ifelse(nchar(unlist(strsplit(x, " "))[[1]]) > 3,
                   paste0(unlist(strsplit(x, " "))[[1]], 
@@ -366,18 +361,25 @@ scatter_df %>%
   geom_point(size = 3) +
   scale_color_manual(values = c("#b6eb60", "#eb633d", "#ebae34","#0bb83c")) +
   geom_label_repel(aes(color = Quadrant), size = 3, fill = "white", 
-                            min.segment.length = unit(0, "lines"), fontface = "bold") +
+                   min.segment.length = unit(0, "lines"), fontface = "bold") +
   scale_y_continuous(limits = c(low_range, high_range), 
-                     breaks = c(low_range + 100, high_range - 100),
-                     labels = c("Below Average \n Points For", "Above Average \n Points For")) +
-  scale_x_continuous(limits = c(low_range, high_range), breaks = c(low_range + 100, high_range - 100),
-                     labels = c("Below Average \n Points Against", "Above Average \n Points Against")) +
+                     breaks = c(low_range + 100, mid_pt, high_range - 100),
+                     labels = c("Below Average \n Points For", 
+                                paste(scales::number(mid_pt, big.mark = ","), "\nPoints"),
+                                "Above Average \n Points For")) +
+  scale_x_continuous(limits = c(low_range, high_range), 
+                     breaks = c(low_range + 100, mid_pt, high_range - 100),
+                     labels = c("Below Average \n Points Against", 
+                                paste(scales::number(mid_pt, big.mark = ","), "\nPoints"),
+                                "Above Average \n Points Against")) +
   coord_fixed(ratio = 1, clip = 'off') +
   theme_classic() +
-  labs(x = "", y = "", title = "Points For vs Points Against") +
+  labs(x = "", y = "", title = "Quadrant Chart", subtitle = "Points For vs Points Against") +
   theme(legend.position = "none",
         plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
         axis.line = element_line(colour = "#4d4e4f", size = 1),
+        axis.text = element_text(face = c('bold', 'plain','bold'), size = c(9, 8, 9)),
         panel.background = element_rect(fill = "#f5f4f0"),
         panel.border = element_rect(color = "#4d4e4f", fill = NA, size = 1))
 
@@ -396,7 +398,7 @@ scatter_df %>%
 FFL_Table %>%
   ggplot(aes(x = fct_reorder(Team, `Points For`, .fun = 'median'), 
              y = `Points For`, fill = Team)) +
-  geom_hline(yintercept = sum(FFL_Table$`Points For`)/(12*parse_number(max(FFL_Table$Week))),
+  geom_hline(yintercept = sum(FFL_Table$`Points For`)/(12*parse_number(current_wk)),
              color = "#5f6161", size = 1) +
   geom_boxplot(alpha = 1) + 
   scale_fill_manual(values = ffl_pal) +
@@ -535,7 +537,7 @@ hi_lite <- highlight_key(FFL_Table %>%
                          ~Team)
 
 hi_lite %>%
-  plot_ly(x = ~Date, y = ~Position, color = ~Team, mode = "lines+markers") %>%
+  plot_ly(x = ~Date, y = ~Position, color = ~Team, mode = "lines") %>%
   add_trace(line = list(shape = "spline", width = 3), name = ~Team) %>%
   layout(xaxis = list(rangeslider = list(visible = TRUE),
                       rangeselector = list(
