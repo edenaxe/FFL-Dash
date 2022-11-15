@@ -71,6 +71,7 @@ ffl_pal <- c(
   "#6c5657", "#0070bf", "#6c53a9", "#4d806e", "#d5af32", "#269F99"
 )
 
+# Establish current week as a variable to be used throughout the script
 current_wk <- paste("Week", max(parse_number(FFL_Table$Week)))
 
 ```
