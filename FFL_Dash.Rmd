@@ -71,7 +71,6 @@ ffl_pal <- c(
   "#6c5657", "#0070bf", "#6c53a9", "#4d806e", "#d5af32", "#269F99"
 )
 
-# Establish current week as a variable to be used throughout the script
 current_wk <- paste("Week", max(parse_number(FFL_Table$Week)))
 
 ```
@@ -537,9 +536,25 @@ hi_lite <- highlight_key(FFL_Table %>%
                            select(Team, Date, Position), 
                          ~Team)
 
+
+ig2 = lapply(1:nrow(mdf),
+            function(i){
+              
+              img <- image_read(mdf[i,]$Image) %>% as.raster()
+              
+              list(source = raster2uri(img),
+                   xref = "paper", yref = "y",
+                   xanchor = "center", yanchor = "middle",
+                   x = 1,
+                   y = mdf[i, ]$Position,
+                   sizex = 0.5, sizey = 0.5)
+            })
+
+
 hi_lite %>%
-  plot_ly(x = ~Date, y = ~Position, color = ~Team, mode = "lines") %>%
-  add_trace(line = list(shape = "spline", width = 3), name = ~Team) %>%
+  plot_ly(x = ~Date, y = ~Position, color = ~Team, mode = "lines", colors = ffl_pal) %>%
+  add_trace(line = list(shape = "spline", width = 8), name = ~Team) %>%
+  layout(images = ig2) %>%
   layout(xaxis = list(rangeslider = list(visible = TRUE),
                       rangeselector = list(
                         buttons = list(
@@ -555,12 +570,13 @@ hi_lite %>%
   onRender("function(el, x) {Plotly.d3.select('.cursor-pointer').style('cursor', 'pointer')}") %>%
   layout(xaxis = list(fixedrange = TRUE), 
          yaxis = list(fixedrange = TRUE, autorange = "reversed")) %>%
-  layout(title = list(text = paste0('<b>Position by Week</b>'), 
-                      font = list(color = "#392c3b", size = 16), 
-                      xanchor = "left", x = 0.05, y = 0.95), 
-         legend = list(x = 1.1, y = 0.5, bgcolor = "#fafaf7"), 
-         paper_bgcolor = "#fafaf7", 
-         plot_bgcolor = "#fafaf7", 
-         font = list(size = 11, color = "#392c3b", family = "Arial")) 
+  layout(title = list(#text = paste0('<b>Position by Week</b>'), 
+    font = list(color = "#392c3b", size = 16), 
+    xanchor = "left", x = 0.05, y = 0.95), 
+    legend = list(x = 1.1, y = 0.5, bgcolor = "#fafaf7"), 
+    margin = list(pad = 10),
+    paper_bgcolor = "#fafaf7", 
+    plot_bgcolor = "#fafaf7", 
+    font = list(size = 11, color = "#392c3b", family = "Arial")) 
 
 ```
