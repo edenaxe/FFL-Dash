@@ -395,16 +395,17 @@ scatter_df %>%
 
 ```{r boxplot}
 
+median_pts <- round(median(FFL_Table$`Points For`), digits = 2)
+
 FFL_Table %>%
   ggplot(aes(x = fct_reorder(Team, `Points For`, .fun = 'median'), 
              y = `Points For`, fill = Team)) +
-  geom_hline(yintercept = sum(FFL_Table$`Points For`)/(12*parse_number(current_wk)),
-             color = "#5f6161", size = 1) +
+  geom_hline(yintercept = median_pts, color = "#5f6161", size = 1) +
   geom_boxplot(alpha = 1) + 
   scale_fill_manual(values = ffl_pal) +
   coord_flip() +
   theme_classic() +
-  labs(title = "Points Boxplot", subtitle = "[Through Week 8]") +
+  labs(title = "Points Boxplot", subtitle = paste0("[Median Points/Game is ", median_pts, "]")) +
   guides(fill = "none") +
   theme(legend.position = "none",
         plot.title = element_text(hjust = 0.5, color = "#5f6161"),
