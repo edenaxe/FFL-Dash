@@ -118,7 +118,7 @@ AP_Tbl <- left_join(
     summarize(Percentage = sum(Win)/parse_number(current_wk)),
   by = c("Teams" = "Team")) %>%
   mutate(Difference = scales::percent(Percentage - `Win Percentage`),
-         `Win Percentage` = scales::percent(`Win Percentage`),
+         `Win Percentage` = scales::percent(`Win Percentage`, accuracy = 0.1),
          Percentage = scales::percent(Percentage))
 
 colnames(AP_Tbl) <- c("Team", "All Play Wins", "All Play Games", 
@@ -129,8 +129,6 @@ colnames(AP_Tbl) <- c("Team", "All Play Wins", "All Play Games",
 # League Table
 
 ## Row
-
-<br>
 
 #### 
 
@@ -229,6 +227,12 @@ FFL_Table %>%
   cols_align(
     align = "center",
     columns = c(1:2, 4:10)) %>%
+  # Format the points for/against columns with comma
+  fmt_number(
+    columns = 7:8,
+        decimals = 1,
+    sep_mark = ","
+    ) %>%
   # Add icons using text transform
   text_transform(
     locations = cells_body(columns = Image),
@@ -323,8 +327,6 @@ ggplotly(ffl_img, tooltip = "text") %>%
 
 ## Row
 
-<br>
-
 ### 
 
 ```{r xy scatter}
@@ -334,9 +336,10 @@ scatter_df <- FFL_Table %>%
   select(Team, `Cumulative Points For`, `Cumulative Points Against`, Position)
 
 # Find the mid point (average) and create low and high ranges for the plot
+# Range is farthest point (b/w min or max points for/against) plus 20%
 mid_pt <- round(mean(scatter_df$`Cumulative Points For`), digits = 0)
-low_range <- mid_pt - 200
-high_range <- mid_pt + 200
+low_range <- mid_pt - round(max(abs(c(max_PF, max_PF, min_PF, min_PA) - mid_pt))*1.2, digits = 0)
+high_range <- mid_pt + round(max(abs(c(max_PF, max_PF, min_PF, min_PA) - mid_pt))*1.2, digits = 0)
 
 
 # Create the scatter plot
@@ -389,8 +392,6 @@ scatter_df %>%
 
 ## Row
 
-<br>
-
 ### 
 
 ```{r boxplot}
@@ -423,8 +424,6 @@ FFL_Table %>%
 # Schedules - What If?
 
 ## Row
-
-<br>
 
 ### 
 
