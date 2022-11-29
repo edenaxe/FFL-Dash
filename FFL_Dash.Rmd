@@ -480,6 +480,20 @@ WI_df %>%
   tab_style(
     style = list(cell_text(weight = "bold")),
     locations = cells_body(columns = 1)) %>%
+  tab_style(
+    style = list(cell_text(weight = "bold")),
+    locations = list(cells_body(columns = 2, rows = 1),
+                     cells_body(columns = 3, rows = 2),
+                     cells_body(columns = 4, rows = 3),
+                     cells_body(columns = 5, rows = 4),
+                     cells_body(columns = 6, rows = 5),
+                     cells_body(columns = 7, rows = 6),
+                     cells_body(columns = 8, rows = 7),
+                     cells_body(columns = 9, rows = 8),
+                     cells_body(columns = 10, rows = 9),
+                     cells_body(columns = 11, rows = 10),
+                     cells_body(columns = 12, rows = 11),
+                     cells_body(columns = 13, rows = 12))) %>%
   cols_width(
     columns = 1 ~ px(200),
     columns = 2:13 ~ px(60)) %>%
@@ -492,11 +506,11 @@ WI_df %>%
   fmt_percent(
     columns = c(2:13),
     decimals = 1) %>%
-    tab_header(
+  tab_header(
     title = "Schedule - What if Analysis",
     subtitle = sub_txt) %>%
   gt_theme_espn() %>%
-    tab_style(
+  tab_style(
     style = list(cell_text(color = "#2b2b2b")),
     locations = cells_body(columns = 2:13)) %>%
   tab_options(
