@@ -4,6 +4,7 @@ output:
   flexdashboard::flex_dashboard:
     theme: default
     orientation: columns
+    logo: Team Icons/FFL_Logo_Small.png
 ---
 
 ```{r setup, include=FALSE}
@@ -60,7 +61,7 @@ FFL_Table <- read_excel("FFL_Data.xlsx", sheet = "Min Table") %>%
   group_by(Week) %>%
   # Arrange by win percentage then cumulative points for (descending order)
   arrange(desc(`Win Percentage`), desc(`Cumulative Points For`)) %>%
-  # Add a poisition column based on the arranged data frame
+  # Add a position column based on the arranged data frame
   mutate(Position = 1:12) %>%
   arrange(parse_number(Week), Position)
 
@@ -299,7 +300,7 @@ ig = lapply(1:nrow(mdf),
               list(source = raster2uri(img),
                    xref = "paper", yref = "y",
                    xanchor = "center", yanchor = "middle",
-                   x = 0.95,
+                   x = 0.955,
                    y = mdf[i, ]$Position,
                    sizex = 0.5, sizey = 0.5)
             })
@@ -518,83 +519,3 @@ WI_df %>%
 
 ```
 
-# Extras
-
-<br>
-
-**Under Construction...**
-
-## Row
-
-<br>
-
-### 
-
-```{r DT}
-
-FFL_Table %>% 
-  select(-Win, -Image) %>% 
-  arrange(Week, Position) %>%
-  as.data.frame() %>%
-  datatable(extensions = 'Buttons', rownames = FALSE, filter = 'top', 
-            options = list(buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
-                           columnDefs = list(list(className = 'dt-center', targets = 2:8)),
-                           pageLength = 12, 
-                           autowidth = TRUE,
-                           dom = 'Blfrtip'))
-
-```
-
-```{r highlight, include=FALSE}
-
-hi_lite <- highlight_key(FFL_Table %>%
-                           cbind.data.frame(
-                             Date = rep(seq.Date(from = as.Date("2022/09/11"), by = "weeks", 
-                                                 length.out = max(parse_number(FFL_Table$Week))), each = 12)) %>%
-                           select(Team, Date, Position), 
-                         ~Team)
-
-
-ig2 = lapply(1:nrow(mdf),
-            function(i){
-              
-              img <- image_read(mdf[i,]$Image) %>% as.raster()
-              
-              list(source = raster2uri(img),
-                   xref = "paper", yref = "y",
-                   xanchor = "center", yanchor = "middle",
-                   x = 1,
-                   y = mdf[i, ]$Position,
-                   sizex = 0.5, sizey = 0.5)
-            })
-
-
-hi_lite %>%
-  plot_ly(x = ~Date, y = ~Position, color = ~Team, mode = "lines", colors = ffl_pal) %>%
-  add_trace(line = list(shape = "spline", width = 8), name = ~Team) %>%
-  layout(images = ig2) %>%
-  layout(xaxis = list(rangeslider = list(visible = TRUE),
-                      rangeselector = list(
-                        buttons = list(
-                          list(count = 7, label = "Week", step = "day", stepmode = "backward"),
-                          list(count = 1, label = "Month", step = "month", stepmode = "backward"),
-                          list(step = "all")
-                        ))),
-         showlegend = TRUE,
-         yaxis = list(dtick = 1, autorange = "reversed")) %>%
-  highlight(on = "plotly_click", off = "plotly_doubleclick", color = NULL, opacityDim = 0.4) %>%
-  config(modeBarButtonsToRemove = c("pan2d", "autoScale2d", "zoom2d", "zoomIn2d", "zoomOut2d")) %>% 
-  config(displaylogo = FALSE) %>% 
-  onRender("function(el, x) {Plotly.d3.select('.cursor-pointer').style('cursor', 'pointer')}") %>%
-  layout(xaxis = list(fixedrange = TRUE), 
-         yaxis = list(fixedrange = TRUE, autorange = "reversed")) %>%
-  layout(title = list(#text = paste0('<b>Position by Week</b>'), 
-    font = list(color = "#392c3b", size = 16), 
-    xanchor = "left", x = 0.05, y = 0.95), 
-    legend = list(x = 1.1, y = 0.5, bgcolor = "#fafaf7"), 
-    margin = list(pad = 10),
-    paper_bgcolor = "#fafaf7", 
-    plot_bgcolor = "#fafaf7", 
-    font = list(size = 11, color = "#392c3b", family = "Arial")) 
-
-```
