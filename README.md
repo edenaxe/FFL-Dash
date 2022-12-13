@@ -3,7 +3,7 @@
 <br>
 
 ### Access the live dashboard [here](https://edenaxe.github.io/FFL-Dash/Output/FFL_Dash.html)
-(Latest Update = Week 13, 12/07/2022)
+(Latest Update = Week 14, 12/13/2022... This will be the final update. Good luck in playoffs!)
 
 <br> 
 
