@@ -1,0 +1,217 @@
+---
+title: "FFL Dash Extras"
+author: "Eden Axelrad"
+date: '2022-12-13'
+output: html_document
+---
+
+#Extras
+
+## DT Table
+
+```{r DT}
+
+FFL_Table %>% 
+  select(-Win, -Image) %>% 
+  arrange(Week, Position) %>%
+  as.data.frame() %>%
+  datatable(extensions = 'Buttons', rownames = FALSE, filter = 'top', 
+            options = list(buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+                           columnDefs = list(list(className = 'dt-center', targets = 2:8)),
+                           pageLength = 12, 
+                           autowidth = TRUE,
+                           dom = 'Blfrtip'))
+
+```
+
+## Plotly Highlight Chart
+
+```{r highlight, include=FALSE}
+
+hi_lite <- highlight_key(FFL_Table %>%
+                           cbind.data.frame(
+                             Date = rep(seq.Date(from = as.Date("2022/09/11"), by = "weeks", 
+                                                 length.out = max(parse_number(FFL_Table$Week))), each = 12)) %>%
+                           select(Team, Date, Position), 
+                         ~Team)
+
+
+ig2 = lapply(1:nrow(mdf),
+            function(i){
+              
+              img <- image_read(mdf[i,]$Image) %>% as.raster()
+              
+              list(source = raster2uri(img),
+                   xref = "paper", yref = "y",
+                   xanchor = "center", yanchor = "middle",
+                   x = 1,
+                   y = mdf[i, ]$Position,
+                   sizex = 0.5, sizey = 0.5)
+            })
+
+
+hi_lite %>%
+  plot_ly(x = ~Date, y = ~Position, color = ~Team, mode = "lines", colors = ffl_pal) %>%
+  add_trace(line = list(shape = "spline", width = 8), name = ~Team) %>%
+  layout(images = ig2) %>%
+  layout(xaxis = list(rangeslider = list(visible = TRUE),
+                      rangeselector = list(
+                        buttons = list(
+                          list(count = 7, label = "Week", step = "day", stepmode = "backward"),
+                          list(count = 1, label = "Month", step = "month", stepmode = "backward"),
+                          list(step = "all")
+                        ))),
+         showlegend = TRUE,
+         yaxis = list(dtick = 1, autorange = "reversed")) %>%
+  highlight(on = "plotly_click", off = "plotly_doubleclick", color = NULL, opacityDim = 0.4) %>%
+  config(modeBarButtonsToRemove = c("pan2d", "autoScale2d", "zoom2d", "zoomIn2d", "zoomOut2d")) %>% 
+  config(displaylogo = FALSE) %>% 
+  onRender("function(el, x) {Plotly.d3.select('.cursor-pointer').style('cursor', 'pointer')}") %>%
+  layout(xaxis = list(fixedrange = TRUE), 
+         yaxis = list(fixedrange = TRUE, autorange = "reversed")) %>%
+  layout(title = list(#text = paste0('<b>Position by Week</b>'), 
+    font = list(color = "#392c3b", size = 16), 
+    xanchor = "left", x = 0.05, y = 0.95), 
+    legend = list(x = 1.1, y = 0.5, bgcolor = "#fafaf7"), 
+    margin = list(pad = 10),
+    paper_bgcolor = "#fafaf7", 
+    plot_bgcolor = "#fafaf7", 
+    font = list(size = 11, color = "#392c3b", family = "Arial")) 
+
+
+hi_lite %>%
+  plot_ly(x = ~Date, y = ~Position, color = ~Team, mode = "lines", colors = ffl_pal) %>%
+  add_trace(line = list(shape = "spline", width = 8), name = ~Team) %>%
+  layout(images = ig2,
+         showlegend = FALSE,
+         yaxis = list(dtick = 1, fixedrange = TRUE, autorange = "reversed"),
+         xaxis = list(fixedrange = TRUE), 
+         title = list(#text = paste0('<b>Position by Week</b>'), 
+           font = list(color = "#392c3b", size = 16), 
+           xanchor = "left", x = 0.05, y = 0.95), 
+         legend = list(x = 1.1, y = 0.5, bgcolor = "#fafaf7"), 
+         margin = list(pad = 10),
+         paper_bgcolor = "#fafaf7", 
+         plot_bgcolor = "#fafaf7", 
+         font = list(size = 11, color = "#392c3b", family = "Arial")) %>%
+  config(modeBarButtonsToRemove = c("pan2d", "autoScale2d", "zoom2d", "zoomIn2d", "zoomOut2d"),
+         displaylogo = FALSE) %>% 
+  onRender("function(el, x) {Plotly.d3.select('.cursor-pointer').style('cursor', 'pointer')}")
+
+
+```
+
+## Week 14 Playoff Sim
+
+```{r playoffs, include=FALSE, echo=FALSE}
+
+# Generate the initial df with current standings, points, wins, and week 14 opponent
+Playoff_Sim <- cbind.data.frame(
+  FFL_Table %>%
+    filter(Week == current_wk) %>%
+    mutate(Wins = parse_number(substr(`W-L`, 1, 2))) %>%
+    ungroup() %>%
+    select(Team, `Cumulative Points For`, Wins),
+  Opponent = c("Christian Kirk Cousins", "Freier Freier Pants on Fire", "Cooking with Gas",
+               "Fantasy Football Champion 2022", "Bye Breece See You in ValHalla", "Ju Ju Smith Poopster",
+               "Kauaireek Hill", "Dillon Panthers", "Dulcich de Leche",
+               "Krombopulos Michael Evans", "Daemon and the Rightful Heirs", "Chasing dank Herb")  
+) 
+
+
+# Generate all possible options - 12 choose 6 with team names 
+All_Options <- combn(Playoff_Sim$Team, 6) %>% as.data.frame()
+
+
+# Create a function that generates results for a single outcome/version
+Gen_Sim <- function(version) {
+  
+  left_join(Playoff_Sim %>% 
+              mutate(Wk14_Win = ifelse(Team %in% All_Options[[version]], 1, 0)),
+            Playoff_Sim %>% 
+              mutate(Wk14_Win = ifelse(Team %in% All_Options[[version]], 1, 0)) %>% 
+              select("Opponent" = Team, "Wk14_Opp" = Wk14_Win)) %>%
+    mutate(Status = ifelse(Wk14_Win + Wk14_Opp == 1, "Valid", "Invalid"),
+           Status = ifelse("Invalid" %in% Status, "Invalid", "Valid"),
+           Version = version)
+  
+}
+
+
+# Generate a df with all outcomes
+# Cleanup and add needed cols
+All_Outcomes <- map(
+  .x = colnames(All_Options),
+  .f = Gen_Sim) %>%
+  bind_rows() %>%
+  filter(Status == "Valid") %>%
+  select(-Wk14_Opp) %>%
+  mutate(`Total Wins` = Wins + Wk14_Win) %>%
+  group_by(Version) %>%
+  arrange(desc(`Total Wins`), desc(`Cumulative Points For`)) %>%
+  mutate(Position = 1:12) %>%
+  arrange(Version)
+
+
+# Generate the table format to be used with our gt() final output
+Outcome_Tbl <- left_join(
+  All_Outcomes %>%
+    group_by(Team, Position) %>%
+    summarize(Percent = scales::percent(n()/(nrow(All_Outcomes)/12), accuracy = 0.1)) %>%
+    pivot_wider(names_from = Position, 
+                values_from = Percent,
+                values_fill = "-"),
+  Playoff_Sim %>% select(Team, Wins, `Cumulative Points For`)) %>%
+  arrange(desc(Wins), desc(`Cumulative Points For`)) %>%
+  select(Team, `1`, `2`, `3`, `4`, `5`, `6`, `7`, `8`, `9`, `10`, `11`, `12`) %>%
+  ungroup() 
+
+
+# Subtitle text
+sub_txt2 <- "There are 64 unique and possible outcomes in week 14. This table depicts the potential landing spots of all teams if current 'Points For' position remains. This does NOT account for win probability or other factors. It simply shows the number of outcomes in which a team can land in a given spot. For example, in 32 out of 64 outcomes, Dulcich de Leche ends up in the 9 spot - hence the 50%. Bold cells indicate current position."
+
+
+# Generate gt() table
+gt(Outcome_Tbl) %>%
+  tab_style(
+    style = list(cell_text(weight = "bold")),
+    locations = cells_body(columns = 1)) %>%
+  tab_style(
+    style = list(cell_text(weight = "bold")),
+    locations = list(cells_body(columns = 2, rows = 1),
+                     cells_body(columns = 3, rows = 2),
+                     cells_body(columns = 4, rows = 3),
+                     cells_body(columns = 5, rows = 4),
+                     cells_body(columns = 6, rows = 5),
+                     cells_body(columns = 7, rows = 6),
+                     cells_body(columns = 8, rows = 7),
+                     cells_body(columns = 9, rows = 8),
+                     cells_body(columns = 10, rows = 9),
+                     cells_body(columns = 11, rows = 10),
+                     cells_body(columns = 12, rows = 11),
+                     cells_body(columns = 13, rows = 12))) %>%
+  tab_style(
+    style = list( cell_fill(color = "#e2fcdc")),
+    locations = cells_body(columns = 2:7)) %>%
+  cols_width(
+    columns = 1 ~ px(220),
+    columns = 2:13 ~ px(55)) %>%
+  cols_align(
+    align = "center",
+    columns = c(2:13)) %>%
+  cols_align(
+    align = "left",
+    columns = c(1)) %>%
+  tab_header(
+    title = "Week 14 Potential Outcomes",
+    subtitle = sub_txt2) %>%
+  gt_theme_538() %>%
+  tab_style(
+    style = list(cell_text(color = "#2b2b2b")),
+    locations = cells_body(columns = 2:13)) %>%
+  tab_options(
+    table.font.size = '13px')
+
+```
+
+
